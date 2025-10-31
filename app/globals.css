@@ -43,18 +43,18 @@
   --radius-xl: calc(var(--radius) + 4px);
   --animate-aurora: aurora 60s linear infinite;
   @keyframes aurora {
-  from {
-    backgroundPosition: 50% 50%, 50% 50%;
+    from {
+      backgroundposition: 50% 50%, 50% 50%;
     }
-  to {
-    backgroundPosition: 350% 50%, 350% 50%;
+    to {
+      backgroundposition: 350% 50%, 350% 50%;
     }
   }
 }
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(20.904% 0.00002 271.152);
+  --background: #181818;
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);

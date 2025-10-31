@@ -1,4 +1,5 @@
 "use client"
+import NavBar from "@/components/NavBar"
 import { ShootingStars } from "@/components/ui/shadcn-io/shooting-stars"
 import { IconBrandGithub, IconMenu2 } from "@tabler/icons-react"
 import Link from "next/link"
@@ -11,8 +12,8 @@ export default function About() {
     setMenuOpen(!MenuOpen)
   }
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#161616] text-white p-4">
-      <div className="w-full h-16 bg-[#161616] border-b border-[#000000] flex flex-row items-center gap-4 px-4">
+    <div className="h-screen w-screen flex flex-col bg-[#181818] text-white ">
+      <div className="w-full h-16 z-999 bg-[#161616] border-b border-[#000000] flex flex-row items-center gap-4 px-4">
         <div onClick={handleMenu} className="cursor-pointer">
           <IconMenu2 color={"white"} />
         </div>
@@ -28,7 +29,10 @@ export default function About() {
           </Link>
         </div>
       </div>
-      <div className="flex-col flex w-full h-screen items-center justify-center">
+      <div className="fixed left-0 top-16 h-[calc(100vh-4rem)] z-999">
+        {MenuOpen && <NavBar />}
+      </div>
+      <div className="gap-5 flex-col flex w-full h-screen items-center justify-center">
         <h1 className="text-4xl font-bold mb-4">About H-M-D</h1>
         <p className="text-lg max-w-2xl text-center">
           H-M-D is a movie search application that allows users to search for
