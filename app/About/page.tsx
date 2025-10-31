@@ -1,21 +1,17 @@
 "use client"
-import CarouselComponent from "@/components/Carousel"
-import NavBar from "@/components/NavBar"
-import SearchBar from "@/components/searchbar"
-import { Carousel } from "@/components/ui/carousel"
 import { ShootingStars } from "@/components/ui/shadcn-io/shooting-stars"
 import { IconBrandGithub, IconMenu2 } from "@tabler/icons-react"
 import Link from "next/link"
 import { useState } from "react"
 
-export default function HomePage() {
+export default function About() {
   const [MenuOpen, setMenuOpen] = useState(false)
 
   function handleMenu() {
     setMenuOpen(!MenuOpen)
   }
   return (
-    <div className="h-screen w-screen flex flex-col">
+    <div className="h-screen w-screen flex flex-col bg-[#161616] text-white p-4">
       <div className="w-full h-16 bg-[#161616] border-b border-[#000000] flex flex-row items-center gap-4 px-4">
         <div onClick={handleMenu} className="cursor-pointer">
           <IconMenu2 color={"white"} />
@@ -32,24 +28,29 @@ export default function HomePage() {
           </Link>
         </div>
       </div>
-
-      <div className="fixed left-0 top-16 h-[calc(100vh-4rem)] z-50">
-        {MenuOpen && <NavBar />}
+      <div className="flex-col flex w-full h-screen items-center justify-center">
+        <h1 className="text-4xl font-bold mb-4">About H-M-D</h1>
+        <p className="text-lg max-w-2xl text-center">
+          H-M-D is a movie search application that allows users to search for
+          movies, view details about them and create your own watchlists.
+        </p>
+        <Link
+          href="/"
+          className="flex z-99 p-5 border-2 rounded-2xl border-[#141414] hover:bg-[#131313]"
+        >
+          <div>
+            <p>Return</p>
+          </div>
+        </Link>
       </div>
-
-      <div className="flex-1 flex items-center justify-center">
-        <SearchBar />
-      </div>
-      <div className="pointer-events-none">
-        <ShootingStars
-          starColor="#9E00FF"
-          trailColor="#2EB9DF"
-          minSpeed={15}
-          maxSpeed={35}
-          minDelay={1200}
-          maxDelay={4200}
-        />
-      </div>
+      <ShootingStars
+        starColor="#9E00FF"
+        trailColor="#2EB9DF"
+        minSpeed={15}
+        maxSpeed={35}
+        minDelay={1200}
+        maxDelay={4200}
+      />
     </div>
   )
 }
