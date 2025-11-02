@@ -10,8 +10,13 @@ import jsPDF from "jspdf"
 
 export default function YourList() {
   const [clicked, setClicked] = useState(false)
-  const { listmovies, setListMovies } = useMovieContext()
+  const [currentList, setCurrentList] = useState<string>("List 1")
   const [MenuOpen, setMenuOpen] = useState(false)
+  const { lists, setlists } = useMovieContext()
+
+  const currentMovies = Array.isArray(lists[currentList])
+    ? lists[currentList]
+    : []
 
   function handleClick() {
     setClicked(!clicked)
@@ -20,11 +25,16 @@ export default function YourList() {
     setMenuOpen(!MenuOpen)
   }
   function handleexport() {
+    if (!Array.isArray(currentMovies) || currentMovies.length === 0) {
+      alert("No movies to export!")
+      return
+    }
+
     const document = new jsPDF()
     document.text("My Movie List", 10, 10)
 
     let yPosition = 40
-    listmovies.forEach((movie, index) => {
+    currentMovies.forEach((movie, index) => {
       document.setFontSize(12)
       document.text(`${index + 1}. ${movie.title}`, 20, yPosition)
       document.setFontSize(10)
@@ -35,11 +45,19 @@ export default function YourList() {
       )
       yPosition += 15
     })
-    document.save("my-movie-list.pdf")
+    document.save("movie-list.pdf")
   }
   function handleRemove(movieId: number) {
-    const updatedList = listmovies.filter((movie) => movie.id !== movieId)
-    setListMovies(updatedList)
+    if (!Array.isArray(lists[currentList])) {
+      console.error("Current list is not an array!")
+      return
+    }
+
+    const updatedList = lists[currentList].filter(
+      (movie) => movie.id !== movieId
+    )
+    const newLists = { ...lists, [currentList]: updatedList }
+    setlists(newLists)
   }
 
   return (
@@ -74,14 +92,16 @@ export default function YourList() {
               className="bg-[#151515] rounded-2xl h-4/6 w-4/6 border border-black p-4 overflow-y-auto"
             >
               <div className="flex w-full h-1/12 items-center justify-center font-bold mb-4">
-                Your list ({listmovies.length} movies):
+                {currentList} (
+                {Array.isArray(currentMovies) ? currentMovies.length : 0}{" "}
+                movies)
               </div>
-              {listmovies.length === 0 ? (
+              {!Array.isArray(currentMovies) || currentMovies.length === 0 ? (
                 <div className="text-center text-gray-400">
                   No movies added yet. Go search and add some horror movies!
                 </div>
               ) : (
-                listmovies.map((movie) => (
+                currentMovies.map((movie) => (
                   <div
                     key={movie.id}
                     className="flex w-full p-2 border-b border-black items-center justify-between"
@@ -99,7 +119,10 @@ export default function YourList() {
               <div className="flex gap-5">
                 <button
                   className="mt-4 px-4 py-2 bg-[#161616] rounded hover:bg-[#252525] transition-colors"
-                  onClick={() => setListMovies([])}
+                  onClick={() => {
+                    const newLists = { ...lists, [currentList]: [] }
+                    setlists(newLists)
+                  }}
                 >
                   Clear List
                 </button>
@@ -113,12 +136,23 @@ export default function YourList() {
             </div>
           </div>
         )}
-        <div
-          onClick={handleClick}
-          className="h-2/12 w-2/12 border flex items-center justify-center rounded-2xl hover:bg-[#141414] border-[#141414]"
-        >
-          <p>List</p>
-        </div>
+
+        {Object.keys(lists).map((listName) => (
+          <div
+            key={listName}
+            onClick={() => {
+              setCurrentList(listName)
+              setClicked(true)
+            }}
+            className="h-2/12 w-2/12 border flex flex-col items-center justify-center rounded-2xl hover:bg-[#141414] border-[#141414] cursor-pointer m-2"
+          >
+            <p className="font-bold">{listName}</p>
+            <p className="text-sm text-gray-400">
+              ({Array.isArray(lists[listName]) ? lists[listName].length : 0}{" "}
+              movies)
+            </p>
+          </div>
+        ))}
       </div>
       <ShootingStars
         starColor="#9E00FF"

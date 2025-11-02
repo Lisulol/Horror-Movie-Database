@@ -1,17 +1,79 @@
 "use client"
-import { IconSearch } from "@tabler/icons-react"
+import { IconCornerRightDownDouble, IconSearch } from "@tabler/icons-react"
 import { use, useEffect, useState } from "react"
 import { useMovieContext } from "@/porivders/context"
+import { Slider } from "../ui/slider"
 
 export default function SearchBar() {
   const [query, setQuery] = useState("")
-  const [movies, setMovies] = useState([])
+  const [movies, setMovies] = useState<any[]>([])
   const [selectedMovie, setSelectedMovie] = useState<any>(null)
-  const { listmovies, setListMovies } = useMovieContext()
+  const { lists, setlists } = useMovieContext()
+  const [selectedList, setSelectedList] = useState<string>("")
   const [menu, Setmenu] = useState(false)
+
+  // Auto-select first available list when lists load
+  useEffect(() => {
+    const availableLists = Object.keys(lists)
+    if (availableLists.length > 0 && !selectedList) {
+      setSelectedList(availableLists[0])
+    }
+    // If current selected list doesn't exist anymore, switch to first available
+    if (selectedList && !lists[selectedList] && availableLists.length > 0) {
+      setSelectedList(availableLists[0])
+    }
+  }, [lists, selectedList])
   const [showalert, setShowAlert] = useState(false)
   const [message, setMessage] = useState("")
+  const [Filtersopen, setFilterOpen] = useState(false)
+  const [ratingvalue, setRatingValue] = useState<number>()
+  const [yearRange, setYearRange] = useState<number[]>([
+    1900,
+    new Date().getFullYear(),
+  ])
+  const [listmoviesshow, setlistmoviesshow] = useState(false)
+  const [allMovies, setAllMovies] = useState<any[]>([])
+  const [selectedSubgenres, setSelectedSubgenres] = useState<string[]>([])
+  const [sortOption, setSortOption] = useState<string>("")
+  function getSubgenres(movie: any): string[] {
+    const subgenres: string[] = []
+    const ids = movie.genre_ids || []
 
+    if (ids.includes(27) && ids.includes(53)) {
+      subgenres.push("slasher")
+    }
+
+    if (ids.includes(27) && ids.includes(14)) {
+      subgenres.push("supernatural")
+    }
+
+    if (ids.includes(27) && ids.includes(9648)) {
+      subgenres.push("psychological")
+    }
+
+    const text = `${movie.title || ""} ${movie.overview || ""}`.toLowerCase()
+
+    if (text.includes("zombie")) {
+      subgenres.push("zombies")
+    }
+
+    if (text.includes("vampire")) {
+      subgenres.push("vampire")
+    }
+
+    if (text.includes("werewolf")) {
+      subgenres.push("werewolf")
+    }
+
+    if (text.includes("found footage")) {
+      subgenres.push("found footage")
+    }
+
+    return subgenres
+  }
+  function handleSortOption(option: string) {
+    setSortOption(option)
+  }
   function showalertmessage(message: string) {
     setShowAlert(true)
     setMessage(message)
@@ -20,36 +82,71 @@ export default function SearchBar() {
     }, 3000)
   }
   function handleAdd() {
-    if (selectedMovie) {
-      const movieExists = listmovies.some(
-        (movie) => movie.id === selectedMovie.id
-      )
+    if (!selectedMovie) return
 
-      if (movieExists) {
-        showalertmessage("Movie is already in your list")
-        setSelectedMovie(null)
-        return
-      }
-
-      const updatedList = [...listmovies, selectedMovie]
-      setListMovies(updatedList)
-      console.log("added", updatedList)
-      setSelectedMovie(null)
-      showalertmessage("Movie added to your list")
+    if (!lists[selectedList]) {
+      console.error(`List "${selectedList}" does not exist!`)
+      showalertmessage("Error: List not found")
+      return
     }
+
+    const currentListMovies = lists[selectedList]
+
+    if (!Array.isArray(currentListMovies)) {
+      console.error(
+        `List "${selectedList}" is not an array:`,
+        currentListMovies
+      )
+      showalertmessage("Error: Invalid list format")
+      return
+    }
+
+    const movieExists = currentListMovies.some(
+      (movie) => movie.id === selectedMovie.id
+    )
+
+    if (movieExists) {
+      showalertmessage(`Movie is already in ${selectedList}`)
+      setSelectedMovie(null)
+      return
+    }
+
+    const updatedmovies = [...currentListMovies, selectedMovie]
+    const updatedList = { ...lists, [selectedList]: updatedmovies }
+    setlists(updatedList)
+    console.log("Added to", selectedList, ":", updatedList)
+    setSelectedMovie(null)
+    showalertmessage(`Movie added to ${selectedList}`)
   }
 
   async function handleQuery() {
     if (!query.trim()) return
     const response = await fetch(`/api/movies?q=${encodeURIComponent(query)}`)
     const data = await response.json()
-    setMovies(data.results || [])
+    const results = data.results || []
+    setAllMovies(results)
+    setMovies(results)
     console.log(data.results)
   }
 
   function handleSearch(e: KeyboardEvent) {
     if (e.key === "Enter") {
       Setmenu(true)
+    }
+  }
+  function handleslider(value: number[]) {
+    setRatingValue(value?.[0] ?? 0)
+
+    const filteredMovies = allMovies.filter((movie: any) => {
+      return movie.vote_average >= (value?.[0] ?? 0)
+    })
+    setMovies(filteredMovies)
+  }
+  function handlesubgenre(subgenre: string) {
+    if (selectedSubgenres.includes(subgenre)) {
+      setSelectedSubgenres(selectedSubgenres.filter((s) => s !== subgenre))
+    } else {
+      setSelectedSubgenres([...selectedSubgenres, subgenre])
     }
   }
   useEffect(() => {
@@ -59,13 +156,95 @@ export default function SearchBar() {
   function handleClick(movie: any) {
     setSelectedMovie(movie)
   }
+  function handlefilterreset() {
+    setSelectedSubgenres([])
+    setSortOption("")
+    setRatingValue(undefined)
+    setYearRange([1900, new Date().getFullYear()])
+    setMovies(allMovies)
+  }
 
+  const getActiveFilterCount = () => {
+    let count = 0
+
+    const currentYear = new Date().getFullYear()
+    if (yearRange[0] !== 1900 || yearRange[1] !== currentYear) {
+      count++
+    }
+
+    if (selectedSubgenres.length > 0) {
+      count++
+    }
+
+    if (ratingvalue && ratingvalue > 0) {
+      count++
+    }
+
+    if (sortOption) {
+      count++
+    }
+
+    return count
+  }
   useEffect(() => {
     window.addEventListener("keydown", handleSearch)
     return () => {
       window.removeEventListener("keydown", handleSearch)
     }
   })
+
+  function handleslideryear(value: number[]) {
+    setYearRange(value)
+
+    const minYear = value[0]
+    const maxYear = value[1]
+
+    const filteredMovies = allMovies.filter((movie: any) => {
+      const releaseYear = movie.release_date
+        ? parseInt(movie.release_date.split("-")[0], 10)
+        : null
+      return releaseYear && releaseYear >= minYear && releaseYear <= maxYear
+    })
+
+    setMovies(filteredMovies)
+  }
+  useEffect(() => {
+    if (selectedSubgenres.length === 0) {
+      setMovies(allMovies)
+      return
+    }
+
+    const filteredMovies = allMovies.filter((movie: any) => {
+      const movieSubgenres = getSubgenres(movie)
+      return selectedSubgenres.some((selected) =>
+        movieSubgenres.includes(selected)
+      )
+    })
+
+    setMovies(filteredMovies)
+  }, [selectedSubgenres, allMovies])
+
+  useEffect(() => {
+    if (!sortOption || movies.length === 0) return
+
+    let sortedMovies = [...movies]
+
+    if (sortOption === "Highest Rated") {
+      sortedMovies.sort((a, b) => b.vote_average - a.vote_average)
+    } else if (sortOption === "Newest First") {
+      sortedMovies.sort(
+        (a, b) => b.release_date?.localeCompare(a.release_date || "") || 0
+      )
+    } else if (sortOption === "Oldest First") {
+      sortedMovies.sort(
+        (a, b) => a.release_date?.localeCompare(b.release_date || "") || 0
+      )
+    } else if (sortOption === "Most Popular") {
+      sortedMovies.sort((a, b) => b.popularity - a.popularity)
+    }
+
+    setMovies(sortedMovies)
+  }, [sortOption])
 
   return (
     <>
@@ -75,19 +254,31 @@ export default function SearchBar() {
         </div>
       )}
       <div className="z-90 flex flex-col gap-4">
-        <div className="h-10 text-[#252525] items-center flex-row flex bg-[#161616] border border-[#000000] rounded-full px-4 cursor-pointer hover:border-gray-700 transition-colors">
-          <div className="flex items-center justify-center">
-            <IconSearch />
+        <div className="flex flex-row gap-5">
+          <div className="h-10 text-[#252525] items-center flex-row flex bg-[#161616] border border-[#000000] rounded-full px-4 cursor-pointer hover:border-gray-700 transition-colors">
+            <div className="flex items-center justify-center">
+              <IconSearch />
+            </div>
+            <div className="flex items-center flex-1">
+              <input
+                type="text"
+                placeholder="Search movies..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="w-full text-white outline-none bg-transparent px-2 cursor-pointer"
+              />
+            </div>
           </div>
-          <div className="flex items-center flex-1">
-            <input
-              type="text"
-              placeholder="Search movies..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="w-full text-white outline-none bg-transparent px-2 cursor-pointer"
-            />
-          </div>
+          <button
+            onClick={() => setFilterOpen(!Filtersopen)}
+            className="flex items-center justify-center  rounded-2xl text-xs m-2 text-white font-bold border border-[#8a8a8a] bg-[#474747]"
+          >
+            <p>
+              Filters{" "}
+              {getActiveFilterCount() > 0 && `(${getActiveFilterCount()})`}
+            </p>
+            <IconCornerRightDownDouble size={15} />
+          </button>
         </div>
         {menu && (
           <div
@@ -154,7 +345,157 @@ export default function SearchBar() {
             </div>
           </div>
         )}
-        {movies.length > 0 && (
+        {Filtersopen && (
+          <div className="rounded-2xl p-5 flex-col text-white bg-[#121212] flex gap-3 overflow-x-auto pb-2">
+            <div className="flex flex-col border-b border-black w-full p-5">
+              <p>Sort by:</p>
+              <div className="flex flex-row gap-5">
+                <input
+                  type="radio"
+                  name="sort"
+                  className="ml-2"
+                  checked={sortOption === "Highest Rated"}
+                  onChange={() => handleSortOption("Highest Rated")}
+                />
+                <p>Highest Rated</p>
+              </div>
+              <div className="flex flex-row gap-5">
+                <input
+                  type="radio"
+                  name="sort"
+                  className="ml-2"
+                  checked={sortOption === "Newest First"}
+                  onChange={() => handleSortOption("Newest First")}
+                />
+                <p>Newest First</p>
+              </div>
+              <div className="flex flex-row gap-5">
+                <input
+                  type="radio"
+                  name="sort"
+                  className="ml-2"
+                  checked={sortOption === "Oldest First"}
+                  onChange={() => handleSortOption("Oldest First")}
+                />
+                <p>Oldest First</p>
+              </div>
+              <div className="flex flex-row gap-5">
+                <input
+                  type="radio"
+                  name="sort"
+                  className="ml-2"
+                  checked={sortOption === "Most Popular"}
+                  onChange={() => handleSortOption("Most Popular")}
+                />
+                <p>Most Popular</p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-y-4 border-b border-black w-full p-5">
+              <p>Rating: </p>
+              <div className="flex flex-row gap-x-3 ">
+                <Slider
+                  onValueChange={handleslider}
+                  value={[ratingvalue ?? 0]}
+                  max={10}
+                  step={0.1}
+                />
+
+                <p>{ratingvalue}</p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-y-4 border-b border-black w-full p-5">
+              <p>Subgenres: </p>
+              <div>
+                <div className="flex flex-row gap-5">
+                  <input
+                    type="checkbox"
+                    className="ml-2"
+                    checked={selectedSubgenres.includes("slasher")}
+                    onChange={() => handlesubgenre("slasher")}
+                  />
+                  <p>Slasher</p>
+                </div>
+                <div className="flex flex-row gap-5">
+                  <input
+                    type="checkbox"
+                    className="ml-2"
+                    checked={selectedSubgenres.includes("supernatural")}
+                    onChange={() => handlesubgenre("supernatural")}
+                  />
+                  <p>Supernatural</p>
+                </div>
+                <div className="flex flex-row gap-5">
+                  <input
+                    type="checkbox"
+                    className="ml-2"
+                    checked={selectedSubgenres.includes("psychological")}
+                    onChange={() => handlesubgenre("psychological")}
+                  />
+                  <p>Psychological</p>
+                </div>
+                <div className="flex flex-row gap-5">
+                  <input
+                    type="checkbox"
+                    className="ml-2"
+                    checked={selectedSubgenres.includes("zombies")}
+                    onChange={() => handlesubgenre("zombies")}
+                  />
+                  <p>Zombies</p>
+                </div>
+                <div className="flex flex-row gap-5">
+                  <input
+                    type="checkbox"
+                    className="ml-2"
+                    checked={selectedSubgenres.includes("found footage")}
+                    onChange={() => handlesubgenre("found footage")}
+                  />
+                  <p>Found Footage</p>
+                </div>
+                <div className="flex flex-row gap-5">
+                  <input
+                    type="checkbox"
+                    className="ml-2"
+                    checked={selectedSubgenres.includes("vampire")}
+                    onChange={() => handlesubgenre("vampire")}
+                  />
+                  <p>Vampire</p>
+                </div>
+                <div className="flex flex-row gap-5">
+                  <input
+                    type="checkbox"
+                    className="ml-2"
+                    checked={selectedSubgenres.includes("werewolf")}
+                    onChange={() => handlesubgenre("werewolf")}
+                  />
+                  <p>Werewolf</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-col gap-y-4 border-b border-black w-full p-5">
+              <p>
+                Release year: {yearRange[0]} - {yearRange[1]}
+              </p>
+              <div>
+                <Slider
+                  onValueChange={handleslideryear}
+                  min={1900}
+                  max={new Date().getFullYear()}
+                  value={yearRange}
+                />
+              </div>
+            </div>
+            <div className="w-full flex items-center justify-center">
+              <button
+                onClick={handlefilterreset}
+                className="p-1 flex items-center justify-center  rounded-2xl text-xs m-2 text-white font-bold border border-[#8a8a8a] bg-[#474747]"
+              >
+                Clear Filters
+              </button>
+            </div>
+          </div>
+        )}
+
+        {movies.length > 0 && !Filtersopen && query != "" && (
           <div className="flex gap-3 overflow-x-auto pb-2">
             {movies.slice(0, 3).map((movie: any) => (
               <div
@@ -231,12 +572,69 @@ export default function SearchBar() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 justify-center items-center mt-6">
-                <button
-                  className="w-full sm:w-auto px-6 py-2 bg-[#161616] rounded hover:bg-[#252525] transition-colors"
-                  onClick={handleAdd}
-                >
-                  Add to your list
-                </button>
+                <div className="flex flex-col">
+                  <button
+                    className="flex-col gap-x-2 flex w-full sm:w-auto px-6 py-2 bg-[#161616] rounded hover:bg-[#252525] transition-colors"
+                    onClick={() => setlistmoviesshow(!listmoviesshow)}
+                  >
+                    <div className="flex flex-row">
+                      <p>Add to your list</p>
+                      <div className="flex px-2 border-black ">
+                        <IconCornerRightDownDouble />
+                      </div>
+                    </div>
+                  </button>
+                  {listmoviesshow && (
+                    <div className="flex flex-col bg-[#161616] p-3 rounded-lg mt-2 min-w-[250px]">
+                      {Object.keys(lists).length === 0 ? (
+                        <p className="text-gray-400 text-sm mb-2">
+                          No lists yet!
+                        </p>
+                      ) : (
+                        Object.keys(lists).map((listName: string) => (
+                          <div
+                            key={listName}
+                            className="flex items-center justify-between gap-3 mb-2 p-2 hover:bg-[#252525] rounded"
+                          >
+                            <p>
+                              {listName} ({lists[listName].length} movies)
+                            </p>
+                            <button
+                              onClick={() => {
+                                setSelectedList(listName)
+                                handleAdd()
+                                setlistmoviesshow(false)
+                              }}
+                              className="px-3 py-1 bg-green-600 rounded hover:bg-green-700 transition-colors text-sm"
+                            >
+                              Add
+                            </button>
+                          </div>
+                        ))
+                      )}
+                      <div className="border-t border-gray-600 mt-2 pt-2">
+                        <button
+                          onClick={() => {
+                            const newListName = prompt("Enter new list name:")
+                            if (newListName && newListName.trim()) {
+                              const trimmedName = newListName.trim()
+                              if (lists[trimmedName]) {
+                                alert("A list with this name already exists!")
+                                return
+                              }
+                              const newLists = { ...lists, [trimmedName]: [] }
+                              setlists(newLists)
+                              setSelectedList(trimmedName)
+                            }
+                          }}
+                          className="w-full px-3 py-2 bg-blue-600 rounded hover:bg-blue-700 transition-colors text-sm"
+                        >
+                          + Create New List
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <button
                   onClick={() => setSelectedMovie(null)}
                   className="w-full sm:w-auto px-6 py-2 bg-[#161616] rounded hover:bg-[#252525] transition-colors"

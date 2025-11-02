@@ -8,30 +8,66 @@ import {
 } from "react"
 
 interface MovieContextType {
-  listmovies: any[]
-  setListMovies: (movies: any[]) => void
+  lists: Record<string, any[]>
+  setlists: (lists: Record<string, any[]>) => void
 }
 
 const MovieContext = createContext<MovieContextType | null>(null)
 
 export function MovieProvider({ children }: { children: ReactNode }) {
-  const [listmovies, setListMovies] = useState<any[]>([])
+  const [lists, setlists] = useState<Record<string, any[]>>({
+    "List 1": [],
+  })
 
   useEffect(() => {
-    const saved = localStorage.getItem("horrorMovieList")
+    const saved = localStorage.getItem("horrorMovieLists")
     if (saved) {
-      setListMovies(JSON.parse(saved))
+      try {
+        const parsed = JSON.parse(saved)
+        // Only use saved data if it's a valid object with at least one key
+        if (
+          parsed &&
+          typeof parsed === "object" &&
+          Object.keys(parsed).length > 0
+        ) {
+          // Filter out invalid list names (like "0", empty strings, etc.)
+          const validLists: Record<string, any[]> = {}
+          Object.keys(parsed).forEach((key) => {
+            // Only keep lists with valid names (not "0", not empty)
+            if (
+              key &&
+              key.trim() !== "" &&
+              key !== "0" &&
+              Array.isArray(parsed[key])
+            ) {
+              validLists[key] = parsed[key]
+            }
+          })
+
+          // If we have valid lists, use them. Otherwise, use default "List 1"
+          if (Object.keys(validLists).length > 0) {
+            setlists(validLists)
+          } else {
+            setlists({ "List 1": [] })
+          }
+        }
+      } catch (error) {
+        console.error("Failed to parse saved lists:", error)
+        // Keep default "List 1"
+      }
     }
   }, [])
 
   useEffect(() => {
-    if (listmovies.length > 0) {
-      localStorage.setItem("horrorMovieList", JSON.stringify(listmovies))
+    if (Object.keys(lists).length > 0) {
+      localStorage.setItem("horrorMovieLists", JSON.stringify(lists))
+    } else {
+      localStorage.removeItem("horrorMovieLists")
     }
-  }, [listmovies])
+  }, [lists])
 
   return (
-    <MovieContext.Provider value={{ listmovies, setListMovies }}>
+    <MovieContext.Provider value={{ lists, setlists }}>
       {children}
     </MovieContext.Provider>
   )

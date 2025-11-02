@@ -38,14 +38,6 @@ export default function About() {
           H-M-D is a movie search application that allows users to search for
           movies, view details about them and create your own watchlists.
         </p>
-        <Link
-          href="/"
-          className="flex z-99 p-5 border-2 rounded-2xl border-[#141414] hover:bg-[#131313]"
-        >
-          <div>
-            <p>Return</p>
-          </div>
-        </Link>
       </div>
       <ShootingStars
         starColor="#9E00FF"
