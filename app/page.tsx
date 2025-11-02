@@ -1,5 +1,5 @@
 "use client"
-import CarouselComponent from "@/components/Carousel"
+
 import NavBar from "@/components/NavBar"
 import SearchBar from "@/components/searchbar"
 import { Carousel } from "@/components/ui/carousel"

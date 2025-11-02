@@ -7,6 +7,10 @@ import { X } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 import jsPDF from "jspdf"
+import { DndContext } from "@dnd-kit/core"
+import { SortableContext } from "@dnd-kit/sortable"
+import { arrayMove } from "@dnd-kit/sortable"
+import { useSortable } from "@dnd-kit/sortable"
 
 export default function YourList() {
   const [clicked, setClicked] = useState(false)
@@ -20,6 +24,7 @@ export default function YourList() {
   const currentMovies = Array.isArray(lists[currentList])
     ? lists[currentList]
     : []
+  const movieIds = currentMovies.map((movie) => movie.id)
   const [simmilarMovies, setSimmilarMovies] = useState<any[]>([])
   const [showSimmilar, setShowSimmilar] = useState(false)
   const [selectedMovie, setSelectedMovie] = useState<any>(null)
@@ -100,8 +105,75 @@ export default function YourList() {
       setClicked(true)
     }
   }
+  function handlerename() {
+    const newName = prompt("Enter new name for the list:", currentList)
+    if (newName && newName.trim() !== "" && newName !== currentList) {
+      if (lists.hasOwnProperty(newName)) {
+        showalertmessage("A list with that name already exists!")
+        return
+      }
+      const newLists = { ...lists }
+      newLists[newName] = newLists[currentList]
+      delete newLists[currentList]
+      setlists(newLists)
+      setCurrentList(newName)
+      showalertmessage(`List renamed to ${newName}`)
+    }
+  }
   function handleMenu() {
     setMenuOpen(!MenuOpen)
+  }
+  function handleDragEnd(event: any) {
+    const { active, over } = event
+
+    if (!over || active.id === over.id) return
+
+    const oldIndex = currentMovies.findIndex((m) => m.id === active.id)
+    const newIndex = currentMovies.findIndex((m) => m.id === over.id)
+
+    const reordered = arrayMove(currentMovies, oldIndex, newIndex)
+    const newLists = { ...lists, [currentList]: reordered }
+    setlists(newLists)
+  }
+  function SortableMovie({
+    movie,
+    onRemove,
+  }: {
+    movie: any
+    onRemove: (id: number) => void
+  }) {
+    const { attributes, listeners, setNodeRef, transform, transition } =
+      useSortable({ id: movie.id })
+    const style = {
+      transform: transform
+        ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
+        : undefined,
+      transition,
+    }
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className="flex w-full p-2 border-b border-black items-center justify-between"
+      >
+        <span>{movie.title || movie.name}</span>
+        <div className="flex flex-row">
+          <div
+            className="cursor-grab active:cursor-grabbing pr-2"
+            {...attributes}
+            {...listeners}
+          >
+            ⋮⋮
+          </div>
+          <button
+            onClick={() => onRemove(movie.id)}
+            className="hover:bg-red-600 p-1 rounded transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
+      </div>
+    )
   }
   function handledelete() {
     if (Object.keys(lists).length > 1) {
@@ -120,6 +192,29 @@ export default function YourList() {
     } else {
       showalertmessage("You must have at least one list!")
     }
+  }
+  function calculate_stats(movies: any[]) {
+    if (!movies || movies.length === 0) {
+      return { avgRating: 0, minYear: null, maxYear: null }
+    }
+
+    let totalRating = 0
+    movies.forEach((movie) => {
+      totalRating += movie.vote_average || 0
+    })
+    const avgRating = (totalRating / movies.length).toFixed(1)
+
+    const years = movies
+      .map((movie) => {
+        const year = movie.release_date?.split("-")[0]
+        return year ? parseInt(year) : null
+      })
+      .filter((year) => year !== null)
+
+    const minYear = years.length > 0 ? Math.min(...years) : null
+    const maxYear = years.length > 0 ? Math.max(...years) : null
+
+    return { avgRating, minYear, maxYear }
   }
   function handleexport() {
     if (!Array.isArray(currentMovies) || currentMovies.length === 0) {
@@ -216,7 +311,7 @@ export default function YourList() {
 
       {selectedMovie && (
         <div
-          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 p-4"
+          className="fixed inset-0 z-10000 flex items-center justify-center bg-black/80 p-4"
           onClick={() => setSelectedMovie(null)}
         >
           <div
@@ -263,7 +358,6 @@ export default function YourList() {
             <div className="flex gap-3 justify-center mt-6">
               <button
                 onClick={() => {
-                  // Add to current list
                   const movieExists = currentMovies.some(
                     (m) => m.id === selectedMovie.id
                   )
@@ -347,49 +441,75 @@ export default function YourList() {
                   No movies added yet. Go search and add some horror movies!
                 </div>
               ) : (
-                currentMovies.map((movie) => (
-                  <div
-                    key={movie.id}
-                    className="flex w-full p-2 border-b border-black items-center justify-between"
-                  >
-                    <span>{movie.title || movie.name}</span>
-                    <button
-                      onClick={() => handleRemove(movie.id)}
-                      className="hover:bg-red-600 p-1 rounded transition-colors"
-                    >
-                      <X size={18} />
-                    </button>
-                  </div>
-                ))
+                <DndContext onDragEnd={handleDragEnd}>
+                  <SortableContext items={movieIds}>
+                    {currentMovies.map((movie) => (
+                      <SortableMovie
+                        key={movie.id}
+                        movie={movie}
+                        onRemove={handleRemove}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
               )}
-              <div className="flex gap-5">
-                <button
-                  className="mt-4 px-4 py-2 bg-[#161616] rounded hover:bg-[#252525] transition-colors"
-                  onClick={() => {
-                    const newLists = { ...lists, [currentList]: [] }
-                    setlists(newLists)
-                  }}
-                >
-                  Clear List
-                </button>
-                <button
-                  className="mt-4 px-4 py-2 bg-[#161616] rounded hover:bg-[#252525] transition-colors"
-                  onClick={handleexport}
-                >
-                  Export List
-                </button>
-                <button
-                  className="mt-4 px-4 py-2 bg-[#161616] rounded hover:bg-[#252525] transition-colors"
-                  onClick={handledelete}
-                >
-                  Delete List
-                </button>
-                <button
-                  className="mt-4 px-4 py-2 bg-[#161616] rounded hover:bg-[#252525] transition-colors"
-                  onClick={handlesimmilar}
-                >
-                  Show simmilar
-                </button>
+              <div className="flex flex-col gap-5">
+                <div className="gap-x-5 flex flex-row">
+                  <button
+                    className="mt-4 px-4 py-2 bg-[#161616] rounded hover:bg-[#252525] transition-colors"
+                    onClick={() => {
+                      const newLists = { ...lists, [currentList]: [] }
+                      setlists(newLists)
+                    }}
+                  >
+                    Clear List
+                  </button>
+                  <button
+                    className="mt-4 px-4 py-2 bg-[#161616] rounded hover:bg-[#252525] transition-colors"
+                    onClick={handleexport}
+                  >
+                    Export List
+                  </button>
+                  <button
+                    className="mt-4 px-4 py-2 bg-[#161616] rounded hover:bg-[#252525] transition-colors"
+                    onClick={handledelete}
+                  >
+                    Delete List
+                  </button>
+                  <button
+                    className="mt-4 px-4 py-2 bg-[#161616] rounded hover:bg-[#252525] transition-colors"
+                    onClick={handlesimmilar}
+                  >
+                    Show simmilar
+                  </button>
+                  <button
+                    className="mt-4 px-4 py-2 bg-[#161616] rounded hover:bg-[#252525] transition-colors"
+                    onClick={handlerename}
+                  >
+                    Rename
+                  </button>
+                </div>
+                <div className="w-full flex gap-5 border-t border-black p-5">
+                  {calculate_stats(currentMovies).avgRating}
+                  {Object.keys(lists).map((listName) => {
+                    const stats = calculate_stats(lists[listName])
+
+                    return (
+                      <div className="flex gap-x-5  " key={listName}>
+                        <p className="border-r px-2 border-black">{listName}</p>
+                        <p className="border-r px-2 border-black">
+                          {lists[listName].length} movies
+                        </p>
+                        <p className="border-r px-2 border-black">
+                          ⭐ {stats.avgRating} avg
+                        </p>
+                        <p className="border-r px-2 border-black">
+                          {stats.minYear}-{stats.maxYear}
+                        </p>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             </div>
           </div>
