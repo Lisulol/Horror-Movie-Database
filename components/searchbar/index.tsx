@@ -4,6 +4,8 @@ import { use, useEffect, useState } from "react"
 import { useMovieContext } from "@/porivders/context"
 import { Slider } from "../ui/slider"
 
+const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY
+
 export default function SearchBar() {
   const [query, setQuery] = useState("")
   const [movies, setMovies] = useState<any[]>([])
@@ -35,6 +37,7 @@ export default function SearchBar() {
   const [allMovies, setAllMovies] = useState<any[]>([])
   const [selectedSubgenres, setSelectedSubgenres] = useState<string[]>([])
   const [sortOption, setSortOption] = useState<string>("")
+
   function getSubgenres(movie: any): string[] {
     const subgenres: string[] = []
     const ids = movie.genre_ids || []
@@ -71,9 +74,11 @@ export default function SearchBar() {
 
     return subgenres
   }
+
   function handleSortOption(option: string) {
     setSortOption(option)
   }
+
   function showalertmessage(message: string) {
     setShowAlert(true)
     setIsAlertClosing(false)
@@ -86,6 +91,7 @@ export default function SearchBar() {
       }, 300)
     }, 2700)
   }
+
   function handleAdd() {
     if (!selectedMovie) return
 
@@ -124,14 +130,31 @@ export default function SearchBar() {
     showalertmessage(`Movie added to ${selectedList}`)
   }
 
+  // UPDATED: Fetch directly from TMDB API
   async function handleQuery() {
     if (!query.trim()) return
-    const response = await fetch(`/api/movies?q=${encodeURIComponent(query)}`)
-    const data = await response.json()
-    const results = data.results || []
-    setAllMovies(results)
-    setMovies(results)
-    console.log(data.results)
+
+    try {
+      const response = await fetch(
+        `https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(
+          query
+        )}`
+      )
+      const data = await response.json()
+      const results = data.results || []
+
+      // Filter for horror movies (genre ID 27)
+      const horrorMovies = results.filter((movie: any) =>
+        movie.genre_ids?.includes(27)
+      )
+
+      setAllMovies(horrorMovies)
+      setMovies(horrorMovies)
+      console.log(horrorMovies)
+    } catch (error) {
+      console.error("Error fetching movies:", error)
+      showalertmessage("Failed to fetch movies")
+    }
   }
 
   function handleSearch(e: KeyboardEvent) {
@@ -139,6 +162,7 @@ export default function SearchBar() {
       Setmenu(true)
     }
   }
+
   function handleslider(value: number[]) {
     setRatingValue(value?.[0] ?? 0)
 
@@ -147,6 +171,7 @@ export default function SearchBar() {
     })
     setMovies(filteredMovies)
   }
+
   function handlesubgenre(subgenre: string) {
     if (selectedSubgenres.includes(subgenre)) {
       setSelectedSubgenres(selectedSubgenres.filter((s) => s !== subgenre))
@@ -154,6 +179,7 @@ export default function SearchBar() {
       setSelectedSubgenres([...selectedSubgenres, subgenre])
     }
   }
+
   useEffect(() => {
     handleQuery()
   }, [query])
@@ -161,6 +187,7 @@ export default function SearchBar() {
   function handleClick(movie: any) {
     setSelectedMovie(movie)
   }
+
   function handlefilterreset() {
     setSelectedSubgenres([])
     setSortOption("")
@@ -191,6 +218,7 @@ export default function SearchBar() {
 
     return count
   }
+
   useEffect(() => {
     window.addEventListener("keydown", handleSearch)
     return () => {
@@ -213,6 +241,7 @@ export default function SearchBar() {
 
     setMovies(filteredMovies)
   }
+
   function handlecreate() {
     const newListName = prompt("Enter new list name:")
     if (newListName && newListName.trim()) {
@@ -226,6 +255,7 @@ export default function SearchBar() {
       setSelectedList(trimmedName)
     }
   }
+
   useEffect(() => {
     if (selectedSubgenres.length === 0) {
       setMovies(allMovies)

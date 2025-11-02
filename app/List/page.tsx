@@ -28,42 +28,39 @@ export default function YourList() {
   const [simmilarMovies, setSimmilarMovies] = useState<any[]>([])
   const [showSimmilar, setShowSimmilar] = useState(false)
   const [selectedMovie, setSelectedMovie] = useState<any>(null)
+
   async function fetchSimilarMovies() {
     if (currentMovies.length === 0) {
       showalertmessage("No movies in the current list!")
       return
     }
 
-    console.log("Fetching similar movies for:", currentMovies)
+    const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY
 
     try {
       const allSimilarMovies = await Promise.all(
         currentMovies.map(async (movie) => {
-          console.log(`Fetching similar for movie ID: ${movie.id}`)
-          const response = await fetch(`/api/movies?similar=${movie.id}`)
+          const response = await fetch(
+            `https://api.themoviedb.org/3/movie/${movie.id}/similar?api_key=${apiKey}`
+          )
           const data = await response.json()
-          console.log(`Similar movies for ${movie.title}:`, data.results)
           return data.results || []
         })
       )
 
-      console.log("All similar movies:", allSimilarMovies)
       const flattenedMovies = allSimilarMovies.flat()
-      console.log("Flattened movies:", flattenedMovies.length)
-
       const uniqueMovies = flattenedMovies.filter(
         (movie, index, self) =>
           index === self.findIndex((m) => m.id === movie.id)
       )
-      console.log("Unique movies:", uniqueMovies.length)
 
-      const newRecommendations = uniqueMovies.filter(
-        (movie) => !currentMovies.some((m) => m.id === movie.id)
+      // Filter for horror movies only (genre ID 27)
+      const horrorMovies = uniqueMovies.filter((movie) =>
+        movie.genre_ids?.includes(27)
       )
-      console.log(
-        "Final recommendations:",
-        newRecommendations.length,
-        newRecommendations
+
+      const newRecommendations = horrorMovies.filter(
+        (movie) => !currentMovies.some((m) => m.id === movie.id)
       )
 
       setSimmilarMovies(newRecommendations)
@@ -72,6 +69,7 @@ export default function YourList() {
       showalertmessage("Failed to fetch similar movies")
     }
   }
+
   function handlesimmilar() {
     if (currentMovies.length === 0) {
       showalertmessage("No movies in the current list to find similar movies!")
