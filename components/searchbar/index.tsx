@@ -130,7 +130,6 @@ export default function SearchBar() {
     showalertmessage(`Movie added to ${selectedList}`)
   }
 
-  // UPDATED: Fetch directly from TMDB API
   async function handleQuery() {
     if (!query.trim()) return
 
