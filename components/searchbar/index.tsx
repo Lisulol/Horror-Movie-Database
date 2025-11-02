@@ -305,12 +305,12 @@ export default function SearchBar() {
         {message}
       </div>
       <div className="z-90 flex flex-col gap-4">
-        <div className="flex flex-row gap-5">
+        <div className="flex flex-row  justify-center items-center gap-5">
           <div className="h-10 text-[#252525] items-center flex-row flex bg-[#161616] border border-[#000000] rounded-full px-4 cursor-pointer hover:border-gray-700 transition-colors">
             <div className="flex items-center justify-center">
               <IconSearch />
             </div>
-            <div className="flex items-center flex-1">
+            <div className="flex items-center justify-center flex-1">
               <input
                 type="text"
                 placeholder="Search movies..."
@@ -322,7 +322,7 @@ export default function SearchBar() {
           </div>
           <button
             onClick={() => setFilterOpen(!Filtersopen)}
-            className="flex items-center justify-center  rounded-2xl text-xs m-2 text-white font-bold border border-[#8a8a8a] bg-[#474747]"
+            className="flex items-center justify-center  rounded-2xl text-xs p-1 m-2 text-white font-bold border border-[#8a8a8a] bg-[#474747]"
           >
             <p>
               Filters{" "}
