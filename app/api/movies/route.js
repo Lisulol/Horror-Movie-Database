@@ -4,10 +4,22 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url)
   const query = searchParams.get("q")
   const type = searchParams.get("type") || "search/movie"
-
+  const simmilar = searchParams.get("similar")
   const apiKey = process.env.TMDB_API_KEY
 
   try {
+    if (simmilar) {
+      const response = await fetch(
+        `https://api.themoviedb.org/3/movie/${simmilar}/similar?api_key=${apiKey}`
+      )
+      const data = await response.json()
+
+      const horrorMovies = data.results?.filter((movie) =>
+        movie.genre_ids?.includes(27)
+      )
+
+      return NextResponse.json({ ...data, results: horrorMovies || [] })
+    }
     const response = await fetch(
       `https://api.themoviedb.org/3/${type}?api_key=${apiKey}&query=${query}`
     )

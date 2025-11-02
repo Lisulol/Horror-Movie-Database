@@ -10,23 +10,120 @@ import jsPDF from "jspdf"
 
 export default function YourList() {
   const [clicked, setClicked] = useState(false)
+  const [isClosing, setIsClosing] = useState(false)
   const [currentList, setCurrentList] = useState<string>("List 1")
   const [MenuOpen, setMenuOpen] = useState(false)
   const { lists, setlists } = useMovieContext()
-
+  const [showalert, setShowAlert] = useState(false)
+  const [isAlertClosing, setIsAlertClosing] = useState(false)
+  const [message, setMessage] = useState("")
   const currentMovies = Array.isArray(lists[currentList])
     ? lists[currentList]
     : []
+  const [simmilarMovies, setSimmilarMovies] = useState<any[]>([])
+  const [showSimmilar, setShowSimmilar] = useState(false)
+  const [selectedMovie, setSelectedMovie] = useState<any>(null)
+  async function fetchSimilarMovies() {
+    if (currentMovies.length === 0) {
+      showalertmessage("No movies in the current list!")
+      return
+    }
 
+    console.log("Fetching similar movies for:", currentMovies)
+
+    try {
+      const allSimilarMovies = await Promise.all(
+        currentMovies.map(async (movie) => {
+          console.log(`Fetching similar for movie ID: ${movie.id}`)
+          const response = await fetch(`/api/movies?similar=${movie.id}`)
+          const data = await response.json()
+          console.log(`Similar movies for ${movie.title}:`, data.results)
+          return data.results || []
+        })
+      )
+
+      console.log("All similar movies:", allSimilarMovies)
+      const flattenedMovies = allSimilarMovies.flat()
+      console.log("Flattened movies:", flattenedMovies.length)
+
+      const uniqueMovies = flattenedMovies.filter(
+        (movie, index, self) =>
+          index === self.findIndex((m) => m.id === movie.id)
+      )
+      console.log("Unique movies:", uniqueMovies.length)
+
+      const newRecommendations = uniqueMovies.filter(
+        (movie) => !currentMovies.some((m) => m.id === movie.id)
+      )
+      console.log(
+        "Final recommendations:",
+        newRecommendations.length,
+        newRecommendations
+      )
+
+      setSimmilarMovies(newRecommendations)
+    } catch (error) {
+      console.error("Error fetching similar movies:", error)
+      showalertmessage("Failed to fetch similar movies")
+    }
+  }
+  function handlesimmilar() {
+    if (currentMovies.length === 0) {
+      showalertmessage("No movies in the current list to find similar movies!")
+      return
+    } else {
+      setShowSimmilar(true)
+      fetchSimilarMovies()
+    }
+  }
+
+  function showalertmessage(message: string) {
+    setShowAlert(true)
+    setIsAlertClosing(false)
+    setMessage(message)
+    setTimeout(() => {
+      setIsAlertClosing(true)
+      setTimeout(() => {
+        setShowAlert(false)
+        setIsAlertClosing(false)
+      }, 300)
+    }, 2700)
+  }
   function handleClick() {
-    setClicked(!clicked)
+    if (clicked) {
+      setIsClosing(true)
+      setTimeout(() => {
+        setClicked(false)
+        setIsClosing(false)
+      }, 300)
+    } else {
+      setClicked(true)
+    }
   }
   function handleMenu() {
     setMenuOpen(!MenuOpen)
   }
+  function handledelete() {
+    if (Object.keys(lists).length > 1) {
+      const newLists = Object.keys(lists).reduce((acc, key) => {
+        if (key !== currentList) {
+          acc[key] = lists[key]
+        }
+        return acc
+      }, {} as Record<string, any[]>)
+      setlists(newLists)
+      setIsClosing(true)
+      setTimeout(() => {
+        setClicked(false)
+        setIsClosing(false)
+      }, 300)
+    } else {
+      showalertmessage("You must have at least one list!")
+    }
+  }
   function handleexport() {
     if (!Array.isArray(currentMovies) || currentMovies.length === 0) {
-      alert("No movies to export!")
+      showalertmessage("No movies to export in this list!")
       return
     }
 
@@ -62,6 +159,151 @@ export default function YourList() {
 
   return (
     <div className="h-screen w-screen flex-col flex font-mono text-white">
+      {showSimmilar && (
+        <div
+          onClick={() => setShowSimmilar(false)}
+          className="flex h-screen w-screen items-center justify-center inset-0 fixed z-9999 bg-black/80"
+        >
+          <div
+            className="bg-[#151515] rounded-2xl h-4/5 w-4/5 border border-black p-6 overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-2xl font-bold mb-4">
+              Similar Horror Movies ({simmilarMovies.length} found)
+            </h2>
+            {simmilarMovies.length === 0 ? (
+              <p className="text-gray-400">Loading similar movies...</p>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {simmilarMovies.map((movie) => (
+                  <div
+                    key={movie.id}
+                    onClick={() => {
+                      setSelectedMovie(movie)
+                      setShowSimmilar(false)
+                    }}
+                    className="bg-[#1a1a1a] rounded-lg overflow-hidden border border-gray-800 hover:border-gray-600 transition-colors cursor-pointer"
+                  >
+                    {movie.poster_path && (
+                      <img
+                        src={`https://image.tmdb.org/t/p/w300${movie.poster_path}`}
+                        alt={movie.title}
+                        className="w-full h-64 object-cover"
+                      />
+                    )}
+                    <div className="p-3">
+                      <h3 className="font-bold text-sm mb-1">
+                        {movie.title || movie.name}
+                      </h3>
+                      <p className="text-xs text-gray-400">
+                        {movie.release_date?.split("-")[0] || "N/A"} • ⭐{" "}
+                        {movie.vote_average?.toFixed(1)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={() => setShowSimmilar(false)}
+              className="mt-6 px-6 py-2 bg-[#161616] rounded hover:bg-[#252525] transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {selectedMovie && (
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setSelectedMovie(null)}
+        >
+          <div
+            className="bg-[#252525] border-2 border-[#3a3a3a] text-white p-8 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-2xl font-bold mb-4 text-center">
+              {selectedMovie.title || selectedMovie.name}
+            </h2>
+
+            <div className="flex flex-col md:flex-row gap-5 items-start">
+              {selectedMovie.poster_path && (
+                <div className="w-full md:w-auto shrink-0 p-3 bg-[#1f1f1f] border-black rounded-2xl border flex items-center justify-center">
+                  <img
+                    src={`https://image.tmdb.org/t/p/w300${selectedMovie.poster_path}`}
+                    alt={selectedMovie.title || selectedMovie.name}
+                    className="rounded-2xl w-full md:w-64 h-auto border border-black"
+                  />
+                </div>
+              )}
+
+              <div className="flex flex-col gap-4 flex-1">
+                <div className="p-5 rounded-2xl bg-[#1f1f1f] border-black border">
+                  <p className="text-base mb-3">
+                    {selectedMovie.overview || "No description available."}
+                  </p>
+                  <p className="text-yellow-400 font-semibold">
+                    ⭐ TMDb rating:{" "}
+                    {selectedMovie.vote_average?.toFixed(1) || "N/A"}/10
+                  </p>
+                </div>
+
+                <div className="p-5 bg-[#1f1f1f] rounded-2xl border-black border">
+                  <p className="text-base">
+                    Released:{" "}
+                    {selectedMovie.release_date?.split("-")[0] ||
+                      selectedMovie.first_air_date?.split("-")[0] ||
+                      "N/A"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 justify-center mt-6">
+              <button
+                onClick={() => {
+                  // Add to current list
+                  const movieExists = currentMovies.some(
+                    (m) => m.id === selectedMovie.id
+                  )
+                  if (movieExists) {
+                    showalertmessage(`Movie is already in ${currentList}`)
+                  } else {
+                    const newLists = {
+                      ...lists,
+                      [currentList]: [...currentMovies, selectedMovie],
+                    }
+                    setlists(newLists)
+                    showalertmessage(`Added to ${currentList}`)
+                    setSelectedMovie(null)
+                  }
+                }}
+                className="px-6 py-2 bg-green-600 rounded hover:bg-green-700 transition-colors"
+              >
+                Add to {currentList}
+              </button>
+
+              <button
+                onClick={() => setSelectedMovie(null)}
+                className="px-6 py-2 bg-[#161616] rounded hover:bg-[#252525] transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div
+        className={`fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded shadow-lg z-9999 transition-all duration-300 ${
+          showalert && !isAlertClosing
+            ? "opacity-100 translate-y-0"
+            : "opacity-0 -translate-y-4 pointer-events-none"
+        }`}
+      >
+        {message}
+      </div>
       <div className="w-full h-16 z-999 bg-[#161616] border-b border-[#000000] flex flex-row items-center gap-4 px-4">
         <div onClick={handleMenu} className="cursor-pointer">
           <IconMenu2 color={"white"} />
@@ -85,11 +327,15 @@ export default function YourList() {
         {clicked && (
           <div
             onClick={handleClick}
-            className="bg-[#131313]  items-center justify-center fixed h-screen w-full inset-0 z-999 flex "
+            className={`bg-[#131313] items-center justify-center fixed h-screen w-full inset-0 z-999 flex transition-opacity duration-300 ${
+              isClosing ? "opacity-0" : "opacity-100"
+            }`}
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              className="bg-[#151515] rounded-2xl h-4/6 w-4/6 border border-black p-4 overflow-y-auto"
+              className={`bg-[#151515] rounded-2xl h-4/6 w-4/6 border border-black p-4 overflow-y-auto transition-all duration-300 ${
+                isClosing ? "scale-95 opacity-0" : "scale-100 opacity-100"
+              }`}
             >
               <div className="flex w-full h-1/12 items-center justify-center font-bold mb-4">
                 {currentList} (
@@ -131,6 +377,18 @@ export default function YourList() {
                   onClick={handleexport}
                 >
                   Export List
+                </button>
+                <button
+                  className="mt-4 px-4 py-2 bg-[#161616] rounded hover:bg-[#252525] transition-colors"
+                  onClick={handledelete}
+                >
+                  Delete List
+                </button>
+                <button
+                  className="mt-4 px-4 py-2 bg-[#161616] rounded hover:bg-[#252525] transition-colors"
+                  onClick={handlesimmilar}
+                >
+                  Show simmilar
                 </button>
               </div>
             </div>

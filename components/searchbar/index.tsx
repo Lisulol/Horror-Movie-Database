@@ -12,18 +12,18 @@ export default function SearchBar() {
   const [selectedList, setSelectedList] = useState<string>("")
   const [menu, Setmenu] = useState(false)
 
-  // Auto-select first available list when lists load
   useEffect(() => {
     const availableLists = Object.keys(lists)
     if (availableLists.length > 0 && !selectedList) {
       setSelectedList(availableLists[0])
     }
-    // If current selected list doesn't exist anymore, switch to first available
+
     if (selectedList && !lists[selectedList] && availableLists.length > 0) {
       setSelectedList(availableLists[0])
     }
   }, [lists, selectedList])
   const [showalert, setShowAlert] = useState(false)
+  const [isAlertClosing, setIsAlertClosing] = useState(false)
   const [message, setMessage] = useState("")
   const [Filtersopen, setFilterOpen] = useState(false)
   const [ratingvalue, setRatingValue] = useState<number>()
@@ -76,10 +76,15 @@ export default function SearchBar() {
   }
   function showalertmessage(message: string) {
     setShowAlert(true)
+    setIsAlertClosing(false)
     setMessage(message)
     setTimeout(() => {
-      setShowAlert(false)
-    }, 3000)
+      setIsAlertClosing(true)
+      setTimeout(() => {
+        setShowAlert(false)
+        setIsAlertClosing(false)
+      }, 300)
+    }, 2700)
   }
   function handleAdd() {
     if (!selectedMovie) return
@@ -208,6 +213,19 @@ export default function SearchBar() {
 
     setMovies(filteredMovies)
   }
+  function handlecreate() {
+    const newListName = prompt("Enter new list name:")
+    if (newListName && newListName.trim()) {
+      const trimmedName = newListName.trim()
+      if (lists[trimmedName]) {
+        showalertmessage("A list with this name already exists!")
+        return
+      }
+      const newLists = { ...lists, [trimmedName]: [] }
+      setlists(newLists)
+      setSelectedList(trimmedName)
+    }
+  }
   useEffect(() => {
     if (selectedSubgenres.length === 0) {
       setMovies(allMovies)
@@ -248,11 +266,15 @@ export default function SearchBar() {
 
   return (
     <>
-      {showalert && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded shadow-lg z-9999">
-          {message}
-        </div>
-      )}
+      <div
+        className={`fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded shadow-lg z-9999 transition-all duration-300 ${
+          showalert && !isAlertClosing
+            ? "opacity-100 translate-y-0"
+            : "opacity-0 -translate-y-4 pointer-events-none"
+        }`}
+      >
+        {message}
+      </div>
       <div className="z-90 flex flex-col gap-4">
         <div className="flex flex-row gap-5">
           <div className="h-10 text-[#252525] items-center flex-row flex bg-[#161616] border border-[#000000] rounded-full px-4 cursor-pointer hover:border-gray-700 transition-colors">
@@ -614,19 +636,7 @@ export default function SearchBar() {
                       )}
                       <div className="border-t border-gray-600 mt-2 pt-2">
                         <button
-                          onClick={() => {
-                            const newListName = prompt("Enter new list name:")
-                            if (newListName && newListName.trim()) {
-                              const trimmedName = newListName.trim()
-                              if (lists[trimmedName]) {
-                                alert("A list with this name already exists!")
-                                return
-                              }
-                              const newLists = { ...lists, [trimmedName]: [] }
-                              setlists(newLists)
-                              setSelectedList(trimmedName)
-                            }
-                          }}
+                          onClick={handlecreate}
                           className="w-full px-3 py-2 bg-blue-600 rounded hover:bg-blue-700 transition-colors text-sm"
                         >
                           + Create New List
